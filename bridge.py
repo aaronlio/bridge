@@ -305,19 +305,21 @@ class Bridge:
         FOSt2b = (6/((M_neg_max*ybot)/I))
 
         shearFOS2 = 4/((V1*Q)/(I*2*b))
-        print(I)
-        shearGlueFOS2 = (4/((V1*Qglue)/I*(2*(self.glue_tab_width+self.bottom_flange_thickness))))
+        shearGlueFOS2 = (4/((V1*Qglue)/(I*(2*(self.glue_tab_width)))))
 
         bucklingFOSCase1_2 = sigma_crit_case_1/((M_plus_max*ytop)/I)
         bucklingFOSCase2_2 = sigma_crit_case_2/((M_plus_max*ytop)/I)
         bucklingFOSCase3_2 = sigma_crit_case_3/((M_plus_max*ytop)/I)
-
         bucklingFOSCase4_2 = sigma_crit_case_4/((M_neg_max*ybot)/I)
 
         FOSes = [FOSc, FOSt, shearFOS, shearGlueFOS,bucklingFOSCase1, bucklingFOSCase2, bucklingFOSCase3, bucklingFOSCase4, 
         FOSc2a, FOSt2a, FOSc2b, FOSt2b, shearFOS2, shearGlueFOS2, bucklingFOSCase1_2, bucklingFOSCase2_2, bucklingFOSCase3_2, bucklingFOSCase4_2]
 
-        return FOSes
+        for num in FOSes:
+            if num < 1:
+                return False
+        
+        return True
 
 
     def report(self):
