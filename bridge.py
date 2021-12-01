@@ -451,6 +451,7 @@ class Bridge:
         shear = self.SFD_train()
         max_moment=0
         listOfMatMax=[]
+        indexWhenMax=0
         for i in range(len(shear)):
             Ms=[]
             curM=0
@@ -459,11 +460,13 @@ class Bridge:
                 if(curM>max_moment): 
                     max_moment=curM
                     listOfMatMax=Ms
+                    indexWhenMax=i
                 Ms.append(curM)
         
         ax = plt.subplot(1,1,1)
         x_axis = np.linspace(1,self.length, 1280)
         line1=ax.plot(x_axis, listOfMatMax)
+        #indexWhenMax is the i when max momemnt occured
         plt.show()
 
         
