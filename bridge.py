@@ -443,7 +443,7 @@ class Bridge:
 
 
         return shear_at_every_point
-
+    def deflection(self)
     def BMD_train(self):
         shear = self.SFD_train()
         max_moment=0
