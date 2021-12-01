@@ -314,12 +314,9 @@ class Bridge:
         FOSes = [FOSc, FOSt, shearFOS, shearGlueFOS,bucklingFOSCase1, bucklingFOSCase2, bucklingFOSCase3, bucklingFOSCase4, 
         FOSc2a, FOSt2a, FOSc2b, FOSt2b, shearFOS2, shearGlueFOS2, bucklingFOSCase1_2, bucklingFOSCase2_2, bucklingFOSCase3_2, bucklingFOSCase4_2]
         
-        for num in FOSes:
-            if num < 1:
-                return False
         
-        return True
-
+        return min(FOSes)
+    
     def deadLoad(self):
         failure_modes = {
             "Tension failure at bottom": self.get_max_P_flexural_A()[0], 
