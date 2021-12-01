@@ -469,15 +469,12 @@ class Bridge:
         
 
 #self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num
-
-
+print("-------")
+b1 = Bridge(75, 1280, 11.27, 2, 1, 1, 80, 550, 8)
+b1.report()
+print("-------")
 b2=Bridge(99,1280,8,1, 3, 1,61, 520,8)
-b2.reaction_forces([15, 191, 355, 531, 695, 871])
-b2.SFD_train()
-print(f"AREAAA: {b2.get_amount_paper()/(813*1016)}")
-print(f"train: {b2.deadTrain()}")
 b2.report()
-b2.BMD_train()
 """
 lllll=[0,0,0,0,0, 0, 0]#min load, x, y, z,glueW, height, i
 print(b1.get_amount_paper())
