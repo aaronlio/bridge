@@ -2,6 +2,7 @@ from itertools import product
 import math as math
 import random as random
 from numpy.core.records import recarray
+from numpy.lib.npyio import load
 from tqdm import tqdm
 import copy
 import numpy as np
@@ -241,6 +242,7 @@ class Bridge:
         a1 = 520
 
         a2 = 480
+        a3 = 190
         V2 = 1
         
         self.Tau_crit1 = ((5*(pi**2)*E)/(12*(1-(mu**2))))*(((web_thickness/(height-top_flange_thickness-bottom_flange_thickness))**2) + ((web_thickness/a1)**2))
@@ -251,9 +253,13 @@ class Bridge:
         V2 = (Tau_crit2*I*(2*web_thickness))/Q
         P13 = V2
 
-        P12 = max(P12, P13)
+        self.Tau_crit2 = ((5*(pi**2)*E)/(12*(1-(mu**2))))*(((web_thickness/(height-top_flange_thickness-bottom_flange_thickness))**2) + ((web_thickness/a3)**2))
+        Tau_crit2 = self.Tau_crit2
+        V3 = (Tau_crit2*I*(2*web_thickness))/Q
+        P14=V3
+
         
-        return [P7, P8, P9, P10, P11, P12, P13]
+        return [P7, P8, P9, P10, P11, P12, P13, P14]
 
     def get_max_load_A(self):
         return min(self.get_max_P_shear_A(), min(self.get_max_P_flexural_A()), min(self.get_buckling_failure_A()))
@@ -314,12 +320,9 @@ class Bridge:
         FOSes = [FOSc, FOSt, shearFOS, shearGlueFOS,bucklingFOSCase1, bucklingFOSCase2, bucklingFOSCase3, bucklingFOSCase4, 
         FOSc2a, FOSt2a, FOSc2b, FOSt2b, shearFOS2, shearGlueFOS2, bucklingFOSCase1_2, bucklingFOSCase2_2, bucklingFOSCase3_2, bucklingFOSCase4_2]
         
-        for num in FOSes:
-            if num < 1:
-                return False
-        
-        return True
-
+        print(sigma_crit_case_1*I/ytop)
+        return min(FOSes)
+    
     def deadLoad(self):
         failure_modes = {
             "Tension failure at bottom": self.get_max_P_flexural_A()[0], 
@@ -334,7 +337,8 @@ class Bridge:
             "Buckling Failure of Top Flange at ends": self.get_buckling_failure_A()[3],
             "Buckling Failure of bottom flange": self.get_buckling_failure_A()[4],
             "Shear Buckling Failure of Top of Web with a = 520": self.get_buckling_failure_A()[5],
-            "Shear Buckling Failure of Top of Web with a = 480": self.get_buckling_failure_A()[6]}
+            "Shear Buckling Failure of Top of Web with a = 480": self.get_buckling_failure_A()[6],
+            "Shear Buckling Failure of Top of Web with a = 175": self.get_buckling_failure_A()[7]}
         failure_load = min(zip(failure_modes.values(), failure_modes.keys()))[1]
         return failure_modes[failure_load]
     
@@ -358,12 +362,14 @@ class Bridge:
             "Buckling Failure of Top Flange at ends": self.get_buckling_failure_A()[3],
             "Buckling Failure of bottom flange": self.get_buckling_failure_A()[4],
             "Shear Buckling Failure of Top of Web with a = 520": self.get_buckling_failure_A()[5],
-            "Shear Buckling Failure of Top of Web with a = 480": self.get_buckling_failure_A()[6]}
+            "Shear Buckling Failure of Top of Web with a = 480": self.get_buckling_failure_A()[6],
+            "Shear Buckling Failure of Top of Web with a = 175": self.get_buckling_failure_A()[7]}
         
         #for the point load test
         failure_load = min(zip(failure_modes.values(), failure_modes.keys()))[1]
         print(f"The way to fail the bridge is: {failure_load}")
         print(f"The maximun load that will fail the bridge is: {failure_modes[failure_load]}")
+        print(failure_modes)
         #for the train test
         FOSes = self.FOS()
         print(f"Pass the train test: {FOSes}")
@@ -443,8 +449,6 @@ class Bridge:
         plt.xlabel("Distance along bridge (mm)")
         plt.ylabel("Shear Force (N)")
         plt.show()
-
-
         return shear_at_every_point
 
     def BMD_train(self):
@@ -474,31 +478,108 @@ class Bridge:
         plt.ylabel("Bending Moment (Nxmm)")
         plt.show()
 
+    def SFD_with_point(self, load1, load2):
+        support_a_position = 15
+        support_b_position = 1075
+        P1=565
+        P2=1265
+
+        #Based on hand_calculations 
+        reactionA = .302 * load1
+        reactionB = 1.698 * load2
+
+        x_axis = np.linspace(0,1280,1280)
+        y_axis = np.linspace(0,1280,1280)
+        y_axis[15:564] = reactionA
+        y_axis[565:1074] = reactionA - P1
+        y_axis[1075:1264] = reactionA - P1 + reactionB
+        y_axis[1265:] = 0
+
+        x_axis_short = np.linspace(0,1060,1060)
+        x_axis_end = np.linspace(1060,1280, 220)
+
+        ax = plt.subplot(1,1,1)
+        line1 = ax.plot(x_axis, y_axis)
+        
+        # ALL GRAPHS DEVELOPED BELOW ARE PRESENTED IN DESIGN REPORT
+
+        # Shear Failure Values extracted from b2.report()
+        #line2=ax.plot(x_axis, [850.6]*1280)
+        #line3 = ax.plot(x_axis, [2308.4]*1280)
+    
+        # Shear Buckling Values extracted from b2.report()
+        #line4 = ax.plot(x_axis_short, [829.1]*1060, '-r')
+        #line5 = ax.plot(x_axis_end, [985.7] * 220, '-r')
+
+        #plt.title("SFD vs Material Shear Failures")
+        #plt.xlabel("Distance along Bridge (mm)")
+        #plt.ylabel("Shear Force (N)")
+        #plt.legend(["Shear Force in Bridge", "Matboard Shear Failure", "Glue Shear Failure"], loc="upper right")
+        
+        
+        #plt.title("SFD vs Material Shear Failures")
+        #plt.xlabel("Distance along Bridge (mm)")
+        #plt.ylabel("Shear Force (N)")
+        #plt.legend(["Shear Force in Bridge", "Web Shear Buckling Failure"], loc="upper right")
+        
+        #plt.grid()
+        #plt.show()
+        
+        return y_axis
+
+    # All graphs shown and labelled in the report, sample called b2.BMD_with_point() listed below in main block
+    def BMD_with_point(self, load1, load2):
+        shear = self.SFD_with_point(load1, load2)
+
+        listOfMatMax=[]
+        indexWhenMax=0
+        Ms = []
+        curM = 0
+
+        for j in range(len(shear)):
+            curM += shear[j]
+            Ms.append(curM)
+        
+        ax = plt.subplot(1,1,1)
+        x_axis = np.linspace(1,self.length, 1280)
+        line1=ax.plot(x_axis, Ms)
+        line2 = ax.plot(x_)
+
+        plt.title("BMD for P = 648 N, Failure load = 648.4 N")
+        plt.xlabel("Distance along Bridge (mm)")
+        plt.ylabel("Bending Moment (Nxmm)")
+        plt.grid()
+        plt.show()
         
 
-#self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num
+if __name__ == '__main__':
+    # Necessary inputs to instantiate the class.
+    # self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num
+    # Design 0
+    print("-------")
+    b1 = Bridge(75, 1280, 11.27, 1, 1, 1, 80, 550, 8)
+    b1.report()
+    # Design 1
+    print("-------")
+    b2=Bridge(99,1280,8,1, 3, 1,61, 520,8)
+    b2.report()
 
+    b2.BMD_with_point(648, 648)
 
-b2=Bridge(99,1280,8,1, 3, 1,61, 520,8)
-b2.reaction_forces([15, 191, 355, 531, 695, 871])
-b2.SFD_train()
-print(f"AREAAA: {b2.get_amount_paper()/(813*1016)}")
-print(f"train: {b2.deadTrain()}")
-b2.report()
-b2.BMD_train()
-"""
-lllll=[0,0,0,0,0, 0, 0]#min load, x, y, z,glueW, height, i
-print(b1.get_amount_paper())
-for x,y,z, glueW, height in product(range(1, 5), range(1, 5), range(1, 5), range(8,20), range(50,100)):
-    for i in range (1,100):
-        b_sample=Bridge(height, 1280, glueW, x,y,z, i, 520, 8)
-        if (b_sample.deadLoad()>lllll[0] and b_sample.get_amount_paper()<813*1016*0.92 and b_sample.deadTrain()):
-            lllll[0]=b_sample.deadLoad()
-            lllll[1]=x
-            lllll[2]=y
-            lllll[3]=z
-            lllll[4]=glueW
-            lllll[5]=height
-            lllll[6]=i
-print (f"The size is: {lllll}")
-"""
+    #Optimization Procedure for Bridge Dimension 
+    """
+    lllll=[0,0,0,0,0, 0, 0]#min load, x, y, z,glueW, height, i
+    print(b1.get_amount_paper())
+    for x,y,z, glueW, height in product(range(1, 5), range(1, 5), range(1, 5), range(8,20), range(50,100)):
+        for i in range (1,100):
+            b_sample=Bridge(height, 1280, glueW, x,y,z, i, 520, 8)
+            if (b_sample.deadLoad()>lllll[0] and b_sample.get_amount_paper()<813*1016*0.92 and b_sample.deadTrain()):
+                lllll[0]=b_sample.deadLoad()
+                lllll[1]=x
+                lllll[2]=y
+                lllll[3]=z
+                lllll[4]=glueW
+                lllll[5]=height
+                lllll[6]=i
+    print (f"The size is: {lllll}")
+    """
