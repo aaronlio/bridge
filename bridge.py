@@ -469,6 +469,9 @@ class Bridge:
         x_axis = np.linspace(1,self.length, 1280)
         line1=ax.plot(x_axis, listOfMatMax)
         #indexWhenMax is the i when max momemnt occured
+        plt.title(f"BMD with Maximum Bending Moment, Train at {indexWhenMax} mm")
+        plt.xlabel("Distance Along Beam")
+        plt.ylabel("Bending Moment (Nxmm)")
         plt.show()
 
         
