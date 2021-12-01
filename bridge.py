@@ -5,8 +5,11 @@ from numpy.core.records import recarray
 from tqdm import tqdm
 import copy
 import numpy as np
+from matplotlib import pyplot as plt
+from scipy.interpolate import InterpolatedUnivariateSpline
+import scipy
 
-###CIV VARIABLES###
+###Important Constants###
 E = 4000
 max_tensile = 30
 max_compressive = 6
@@ -14,14 +17,15 @@ max_shear = 4
 mu = 0.2 #poisson's ratio
 max_shear_cement = 2
 pi = math.pi
-
+global failure_load
 ###CONSTRAINTS###
 mandatory_length = 1280
-split_point = 798 #from right to left: go from cross section A to B 
+split_point = 1016 #When moment is 0 under train loading B
 total_matboard = 813*1016 #826008
 
 class Bridge:
     def __init__(self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num):
+        #Important values
         self.paper_thickness = 1.27
         self.height = height
         self.length = length
@@ -39,52 +43,23 @@ class Bridge:
         self.dia_dist = dia_dist
         self.I = self.get_I_A()
 
-    def SFD_train(self):
-        wheel_positions = [0, 176, 340, 516, 680, 856]
+    # Calculates the reaction forces under any train loading conditions
+    def reaction_forces(self, wheel_positions):
         support_a_position = 15
         support_b_position = 1075
-        reaction_forces = [[],[]]
-        for i in range(1280-wheel_positions[5]):
-            reaction_b = 0
-            reaction_a = 0
-            relative_wheel_positions = list(map(lambda x: x - support_a_position, wheel_positions))
-            reaction_b = (sum(relative_wheel_positions)*(400/6))/(support_b_position-support_a_position)
-            reaction_a = 400-reaction_b
+        reaction_forces = [0,0]
+
+        # Get the wheel positions relative to support A; these values can be used in moment calculations
+        relative_wheel_positions = list(map(lambda x: x - support_a_position, wheel_positions))
+        #Sum of moments @ A = 0, solve for B
+        reaction_b = sum(relative_wheel_positions)*(400/6)/1060
+        #Sum in Y = 0, solve for a
+        reaction_a = 400-reaction_b
             
-            wheel_positions = list(map(lambda x: x + 1, wheel_positions))
-            reaction_forces[0].append(reaction_a)
-            reaction_forces[1].append(reaction_b)
-            print(wheel_positions)
+        reaction_forces[0] = reaction_a
+        reaction_forces[1] = reaction_b
+
         return reaction_forces
-    
-    def point_SFD(self):
-        position = np.linspace(0, self.length, 1)
-        self.point_shear = np.zeros((1, self.length))
-        self.point_shear[0][15:564] = .302
-        self.point_shear[0][565:1059] = -.698
-        self.point_shear[0][1060:1264] = 1
-
-    def train_BMD(self):
-        mid_wheel_positions = [132, 308, 472, 648, 812, 988] 
-        end_wheel_positions = [424, 600, 764, 940, 1104, 1280]
-        support_a_position = 15
-        support_b_position = 1075
-        self.train_bmd = np.zeros((1, self.length))
-        
-        reaction_forces = self.SFD_train()
-        reaction_a_mid_wheel, reaction_b_mid_wheel = reaction_forces[0][mid_wheel_positions[0]-support_a_position], reaction_forces[1][mid_wheel_positions[0]-support_a_position]
-        reaction_a_end, reaction_b_end = reaction_forces[0][end_wheel_positions[0]-support_a_position], reaction_forces[1][end_wheel_positions[0]-support_a_position]
-
-        ind_shear_values_at_mid = [0, reaction_a_mid_wheel, -400/6, -400/6,-400/6,-400/6,-400/6,-400/6, reaction_b_mid_wheel]
-    
-        
-        moment_mid = [(15,0), (102.5, 20400), (278.5,43860), (442.5, 54783 ), (618.5, 54783), (782.5, 43860 ), (958.5, 20400)]
-
-        positions_train_at_end = [0, 15, 424, 600, 764, 940, 1075, 1104, 1280]
-        shear_values_train_at_end = [0, reaction_a_end, -400/6,-400/6,-400/6,-400/6, reaction_b_end, -400/6,-400/6]
-        moment_end = [(0,0), (15, 0), (424, 35385), (600, 39457), (764, 32319), (940,20000), (1075, -13603), (1104, -11736), (1280, 0)]
-        
-        #return self.bmd
         
     def ybar(self):
         height = self.height
@@ -357,6 +332,7 @@ class Bridge:
         return self.FOS()
         
     def report(self):
+        global failure_load
         failure_modes = {
             "Tension failure at bottom": self.get_max_P_flexural_A()[0], 
             "Tension failure at top": self.get_max_P_flexural_A()[1], 
@@ -407,12 +383,57 @@ class Bridge:
         
         return paper_used
 
+     # Finds the shear forces from the train load and plots it alongside hand-calculated Vfail for design0
+    # and the calculated Vfail for our design
+    def SFD_train(self):
+        global failure_load
+        max_shear_force = []
+        support_a_position = 15
+        support_b_position = 1075
+        max_single_shear_force = 0
+        shear_with_position = {}
+        max_shear = [0]
+        for i in range(424):
+            cur_shear_force = 0
+            shear = []
+            wheel_positions = [0+i, 176+i, 340+i, 516+i, 680+i, 856+i]
+            wheel_positions_dict = {0+i: -400/6, 15: 0, 176+i: -400/6, 340+i: -400/6, 516+i: -400/6, 680+i: -400/6, 856+i: -400/6, 1075:0}
+            
+            reaction_forces = self.reaction_forces(wheel_positions)
+            
+            wheel_positions_dict[15] = reaction_forces[0] 
+            wheel_positions_dict[1075] = reaction_forces[1]
+            # print(wheel_positions_dict[15], wheel_positions_dict[1075])
+
+            for j in range(self.length):
+                if (j == 15 or j == 1075) and j in wheel_positions:
+                    wheel_positions_dict[j] -= 400/6
+
+                if j in wheel_positions_dict.keys():
+                    cur_shear_force += wheel_positions_dict[j]
+                    
+                
+                shear.append(cur_shear_force)
+            
+            if max(shear, key=abs) > max(max_shear, key=abs):
+                max_shear = shear
+        print(max(max_shear))
+        x_axis = np.linspace(1,self.length, 1280)
+        plt.plot(x_axis, max_shear)
+        plt.plot(x_axis, [178]*1280, "-r") # from hand caclulations
+        plt.plot(x_axis, [648.350953242768] *1280, "-g")
+        plt.plot(x_axis, [-178]*1280, "-r") # from hand caclulations
+        plt.plot(x_axis, [-648.350953242768] *1280, "-g")
+        plt.show()
+        return max_shear
+
+
 #self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num
 
 
-b1 = Bridge(75, 1280, 11.27, 2, 1, 1, 80, 550, 8)
-b1.report()
-b2=Bridge(97, 1280,19,1, 3, 1,61, 260,16)
+b2=Bridge(99,1280,8,1, 3, 1,61, 520,8)
+b2.reaction_forces([15, 191, 355, 531, 695, 871])
+b2.SFD_train()
 print(f"AREAAA: {b2.get_amount_paper()/(813*1016)}")
 print(f"train: {b2.deadTrain()}")
 b2.report()
