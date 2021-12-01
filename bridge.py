@@ -314,7 +314,6 @@ class Bridge:
         FOSes = [FOSc, FOSt, shearFOS, shearGlueFOS,bucklingFOSCase1, bucklingFOSCase2, bucklingFOSCase3, bucklingFOSCase4, 
         FOSc2a, FOSt2a, FOSc2b, FOSt2b, shearFOS2, shearGlueFOS2, bucklingFOSCase1_2, bucklingFOSCase2_2, bucklingFOSCase3_2, bucklingFOSCase4_2]
         
-        #print("I-value\n\n\n", self.I)
         for num in FOSes:
             if num < 1:
                 return False
@@ -338,6 +337,7 @@ class Bridge:
             "Shear Buckling Failure of Top of Web with a = 480": self.get_buckling_failure_A()[6]}
         failure_load = min(zip(failure_modes.values(), failure_modes.keys()))[1]
         return failure_modes[failure_load]
+    
     def deadTrain(self):
         return self.FOS()
         
@@ -404,6 +404,7 @@ class Bridge:
         support_b_position = 1075
         max_single_shear_force = 0
         shear_with_position = {}
+        shear_at_every_point = []
         max_shear = [0]
         for i in range(424):
             cur_shear_force = 0
@@ -427,18 +428,45 @@ class Bridge:
                 
                 shear.append(cur_shear_force)
             
+            shear_at_every_point.append(shear)
+            
             if max(shear, key=abs) > max(max_shear, key=abs):
                 max_shear = shear
         print(max(max_shear))
-        x_axis = np.linspace(1,self.length, 1280)
-        plt.plot(x_axis, max_shear)
-        plt.plot(x_axis, [178]*1280, "-r") # from hand caclulations
-        plt.plot(x_axis, [648.350953242768] *1280, "-g")
-        plt.plot(x_axis, [-178]*1280, "-r") # from hand caclulations
-        plt.plot(x_axis, [-648.350953242768] *1280, "-g")
-        plt.show()
-        return max_shear
 
+        ax = plt.subplot(1,1,1)
+
+        x_axis = np.linspace(1,self.length, 1280)
+        line1 = ax.plot(x_axis, max_shear, "-b", x_axis, [178]*1280, "-r", x_axis, [+648.350953242768] *1280, "-g", x_axis, [-178]*1280, "-r", x_axis, [-648.350953242768] *1280, "-g")
+        plt.legend(['Shear Force Along Bridge', 'Design 0 Failure Load', 'Design 1 Failure Load'], loc='upper right')
+        plt.title("SFD with Maximum Shear Force, Train at 16mm")
+        plt.xlabel("Distance along bridge (mm)")
+        plt.ylabel("Shear Force (N)")
+        plt.show()
+
+
+        return shear_at_every_point
+
+    def BMD_train(self):
+        shear = self.SFD_train()
+        max_moment=0
+        listOfMatMax=[]
+        for i in range(len(shear)):
+            Ms=[]
+            curM=0
+            for j in range (len(shear[0])):
+                curM+=shear[i][j]
+                if(curM>max_moment): 
+                    max_moment=curM
+                    listOfMatMax=Ms
+                Ms.append(curM)
+        
+        ax = plt.subplot(1,1,1)
+        x_axis = np.linspace(1,self.length, 1280)
+        line1=ax.plot(x_axis, listOfMatMax)
+        plt.show()
+
+        
 
 #self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num
 
@@ -449,6 +477,7 @@ b2.SFD_train()
 print(f"AREAAA: {b2.get_amount_paper()/(813*1016)}")
 print(f"train: {b2.deadTrain()}")
 b2.report()
+b2.BMD_train()
 """
 lllll=[0,0,0,0,0, 0, 0]#min load, x, y, z,glueW, height, i
 print(b1.get_amount_paper())
