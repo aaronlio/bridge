@@ -23,8 +23,12 @@ mandatory_length = 1280
 split_point = 1016 #When moment is 0 under train loading B
 total_matboard = 813*1016 #826008
 
+#creating the bridge object class
 class Bridge:
     def __init__(self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num):
+        """
+        The constructor of the bridge object, which contains all the parameter, or characteristic showing above.
+        """
         #Important values
         self.paper_thickness = 1.27
         self.height = height
@@ -45,6 +49,9 @@ class Bridge:
 
     # Calculates the reaction forces under any train loading conditions
     def reaction_forces(self, wheel_positions):
+        """
+        The function will get the position of the train wheels, and return the reaction force as a list of list
+        """
         support_a_position = 15
         support_b_position = 1075
         reaction_forces = [0,0]
@@ -62,6 +69,9 @@ class Bridge:
         return reaction_forces
         
     def ybar(self):
+        """
+        The function calculates the central axis value on y using its dimension
+        """
         height = self.height
         flange_width = self.flange_width
         web_dist = self.web_dist
@@ -69,25 +79,25 @@ class Bridge:
         top_flange_thickness = self.top_flange_thickness
         bottom_flange_thickness = self.bottom_flange_thickness
         web_thickness = self.web_thickness
-
+        #getting key values
         top_flange_a = flange_width*(top_flange_thickness)
         bottom_flange_a = web_dist * (bottom_flange_thickness)
         web_a = 2*((web_thickness)*(height-top_flange_thickness-bottom_flange_thickness-self.glue_tab_thickness))
         glue_tabs_a = (self.glue_tab_thickness*self.glue_tab_width)*2
-
+        #area of all the different shapes
         top_flange_Y = height - (top_flange_thickness/2)
         bottom_flange_Y = bottom_flange_thickness/2
         web_Y = (height - top_flange_thickness-self.glue_tab_thickness-bottom_flange_thickness)/2 + bottom_flange_thickness
         glue_tabs_y = height-top_flange_thickness-(self.glue_tab_thickness/2)
-        
+        #the Y value from the bottom of each component
         top_flange_aY = top_flange_a*top_flange_Y
         bottom_flange_aY = bottom_flange_a*bottom_flange_Y
         web_aY = web_a * web_Y
         glue_tabs_ay = glue_tabs_a*glue_tabs_y
-        
+        #times up the area with the Y value
         total_ay = top_flange_aY + bottom_flange_aY + web_aY + glue_tabs_ay
         ybar = total_ay/(top_flange_a + bottom_flange_a + web_a + glue_tabs_a)
-        
+        #calcuate the actual ybar
         return ybar
 
     def get_I_A(self):#Get the I for the A section! (It's still pi shaped)
@@ -98,36 +108,36 @@ class Bridge:
         top_flange_thickness = self.top_flange_thickness
         bottom_flange_thickness = self.bottom_flange_thickness
         web_thickness = self.web_thickness
-
+        #assigning the variables
         top_flange_a = flange_width*(top_flange_thickness)
         bottom_flange_a = web_dist * (bottom_flange_thickness)
         web_a = 2*((web_thickness)*(height-top_flange_thickness-bottom_flange_thickness-self.glue_tab_thickness))
         glue_tabs_a = (self.glue_tab_thickness*self.glue_tab_width)*2
-
+        #calcuating the area
         top_flange_Y = height - (top_flange_thickness/2)
         bottom_flange_Y = bottom_flange_thickness/2
         web_Y = (height - top_flange_thickness-self.glue_tab_thickness-bottom_flange_thickness)/2 + bottom_flange_thickness
         glue_tabs_y = height-top_flange_thickness-(self.glue_tab_thickness/2)
-
+        #calculating the Y value
         yb = self.ybar()
         top_flange_d = abs(top_flange_Y-yb)
         bottom_flange_d = abs(yb-bottom_flange_Y)
         web_d = abs(web_Y-yb)
         glue_tabs_d = abs(glue_tabs_y-yb)
-        
+        #calculating the distance from the height to the y bar
         top_flange_ay2 = top_flange_a*(top_flange_d**2)
         bottom_flange_ay2 = bottom_flange_a*(bottom_flange_d**2)
         web_ay2 = web_a*(web_d**2)
         glue_tabsay2 = glue_tabs_a*(glue_tabs_d**2)
-        
+        #value of area times d^2
         web_I = ((web_thickness)*((height - top_flange_thickness - bottom_flange_thickness - self.glue_tab_thickness)**3))/12
         top_flange_I = (self.flange_width*(top_flange_thickness**3))/12
         bottom_flange_I = (self.web_dist*(bottom_flange_thickness**3))/12
         glue_tabs_I = (self.glue_tab_width *(self.glue_tab_thickness**3))/12
-        
+        #calculate the I value for each component
         sum_ay2 = top_flange_ay2 + (2*web_ay2) + bottom_flange_ay2 + (2*glue_tabsay2)
         sum_I = web_I + bottom_flange_I + top_flange_I + glue_tabs_I
-        
+        #sum up all the values
         return sum_ay2+sum_I
 		
     def get_max_P_flexural_A(self): #Calculates the maximum P the bridge can handle without flexural failure.
@@ -138,11 +148,11 @@ class Bridge:
         top_flange_thickness = self.top_flange_thickness
         bottom_flange_thickness = self.bottom_flange_thickness
         web_thickness = self.web_thickness
-        
+        #assigning values
         self.I = self.get_I_A()
         I = self.I
         y = self.ybar()
-
+        #get the I and y bar value
         self.ytop = height - y
         self.ybot = y
         ytop = self.ytop
@@ -179,14 +189,14 @@ class Bridge:
         bottom_flange_thickness = self.bottom_flange_thickness
         web_thickness = self.web_thickness
         
-        
+        #assigning the values
         self.I = self.get_I_A()
         I = self.I
         y = self.ybar()
-        
+        #getting value of I and y bar
         Q = ((web_thickness*2)*(y-bottom_flange_thickness)*(y-abs(y-bottom_flange_thickness)/2)) + (bottom_flange_thickness*web_dist)*abs(y-(bottom_flange_thickness/2))
         P5 = (max_shear*I*(2*web_thickness))/Q
-
+        
         Qglue = (top_flange_thickness*flange_width)*(height - (top_flange_thickness/2) - y)
         P6 = (max_shear_cement*I*(self.glue_tab_width))/Qglue
 
@@ -200,7 +210,7 @@ class Bridge:
         top_flange_thickness = self.top_flange_thickness
         bottom_flange_thickness = self.bottom_flange_thickness
         web_thickness = self.web_thickness
-        
+        #assigning all values
         self.I = self.get_I_A()
         I= self.I
         y = self.ybar()
@@ -333,6 +343,8 @@ class Bridge:
         
     def report(self):
         global failure_load
+        #the following dictionary contains all types of failing ways as well as
+        #its correesponding failing load
         failure_modes = {
             "Tension failure at bottom": self.get_max_P_flexural_A()[0], 
             "Tension failure at top": self.get_max_P_flexural_A()[1], 
