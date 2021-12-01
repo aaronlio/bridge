@@ -437,7 +437,8 @@ class Bridge:
 
     def BMD_train(self):
         shear = self.SFD_train()
-        max_moment
+
+        max_moment = np.trapz(shear)
 
 #self, height, length, glue_tab_width, num_top_flange_layers, num_bottom_flange_layers, num_web_layers, web_dist, dia_dist, dia_num
 
